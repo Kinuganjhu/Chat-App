@@ -3,7 +3,15 @@ import { auth } from './api/firebase';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
-const Profile = () => {
+import styled from 'styled-components';
+
+const Img = styled.img`
+height: 200px;
+width: 200px;
+border-radius: 50%;
+
+`
+const Profile = ({img}) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
@@ -25,8 +33,7 @@ const Profile = () => {
     <>
       {user && (
         <>
-          <h1>{user.displayName}</h1>
-          <img src={user.photoURL} alt='profile' height='200px' />
+          <Img src={user.photoURL} alt='profile' height='200px' />
         </>
       )}
       <button onClick={handleSignOut}>Log Out</button>

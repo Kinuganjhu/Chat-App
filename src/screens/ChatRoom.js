@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from './api/firebase'; // Ensure correct import path
 import { doc, collection, addDoc, query, orderBy, onSnapshot, getDoc } from 'firebase/firestore';
 import styled from 'styled-components';
+import { format } from 'date-fns'; // Use date-fns for formatting the date and time
 
 // Styled components
 const Container = styled.div`
@@ -14,6 +15,7 @@ const Container = styled.div`
   background-color: #f0f0f0;
   border-radius: 8px;
   position: relative;
+  height: 100vh; // Full height to make input stick at the bottom
 `;
 
 const Header = styled.div`
@@ -33,21 +35,56 @@ const HeaderDescription = styled.p`
 `;
 
 const MessagesContainer = styled.div`
-  flex-grow: 1;
+  flex-grow: 1; // Take up remaining space
   overflow-y: auto;
   margin-bottom: 20px;
-  max-height: 400px;
   padding: 10px;
   background-color: white;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
 `;
 
 const Message = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')}; // Align based on user
   padding: 10px;
-  background-color: ${(props) => (props.isCurrentUser ? '#d1ffd1' : '#f1f1f1')};
-  border-radius: 8px;
   margin-bottom: 10px;
-  align-self: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')};
+`;
+
+const MessageBubble = styled.div`
+  padding: 10px;
+  background-color: ${(props) => (props.isCurrentUser ? '#d1ffd1' : '#f1f1f1')}; // Different color for current user
+  border-radius: 8px;
+  max-width: 60%;
+  word-wrap: break-word;
+  align-self: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')}; // Align bubble
+`;
+
+const MessageText = styled.p`
+  margin: 0;
+`;
+
+const MessageSender = styled.strong`
+  color: #555;
+  font-size: 0.85em;
+  margin-bottom: 5px;
+  display: ${(props) => (props.isCurrentUser ? 'none' : 'block')}; // Hide sender name for current user
+`;
+
+const MessageTimestamp = styled.span`
+  font-size: 0.75em;
+  color: #999;
+  margin-top: 5px;
+  align-self: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')}; // Align based on user
+`;
+
+const InputContainer = styled.div`
+  display: flex;
+  padding: 10px;
+  background-color: #fff;
+  border-radius: 8px;
 `;
 
 const InputField = styled.input`
@@ -55,6 +92,7 @@ const InputField = styled.input`
   width: calc(100% - 120px);
   border: 1px solid #ddd;
   border-radius: 4px;
+  flex-grow: 1;
 `;
 
 const SendButton = styled.button`
@@ -132,7 +170,7 @@ const ChatRoom = () => {
         text: newMessage,
         userId: user.uid,
         userName: user.displayName,
-        createdAt: new Date(),
+        createdAt: new Date(), // Add timestamp
       };
 
       await addDoc(collection(db, 'chatrooms', id, 'messages'), messageData);
@@ -155,11 +193,20 @@ const ChatRoom = () => {
             key={message.id}
             isCurrentUser={message.userId === auth.currentUser.uid}
           >
-            <strong>{message.userName}</strong>: {message.text}
+            <MessageBubble isCurrentUser={message.userId === auth.currentUser.uid}>
+              <MessageSender isCurrentUser={message.userId === auth.currentUser.uid}>
+                {message.userName}
+              </MessageSender>
+              <MessageText>{message.text}</MessageText>
+              {/* Display formatted date and time */}
+              <MessageTimestamp>
+                {format(new Date(message.createdAt.seconds * 1000), 'dd/MM/yyyy, HH:mm')}
+              </MessageTimestamp>
+            </MessageBubble>
           </Message>
         ))}
       </MessagesContainer>
-      <div style={{ display: 'flex' }}>
+      <InputContainer>
         <InputField
           type="text"
           value={newMessage}
@@ -167,7 +214,7 @@ const ChatRoom = () => {
           placeholder="Type your message here..."
         />
         <SendButton onClick={handleSendMessage}>Send</SendButton>
-      </div>
+      </InputContainer>
     </Container>
   );
 };
