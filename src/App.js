@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import SignUp from "./screens/SignUp";
 import Home from './screens/Home';
 import ChatRoom from './screens/ChatRoom';
-import Profile from './screens/Profile';
+
 
 
 const App = () => {
@@ -16,7 +16,7 @@ const App = () => {
 
           {/* Dynamic route for ChatRoom with room ID */}
           <Route path="/chatroom/:id" element={<ChatRoom />} />
-          <Route path="/profile" element={<Profile />} />
+
           <Route path="*" element={<h1>Page Not Found</h1>} />
         </Routes>
       </BrowserRouter>
