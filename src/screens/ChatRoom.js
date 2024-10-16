@@ -15,7 +15,7 @@ const Container = styled.div`
   background-color: #f0f0f0;
   border-radius: 8px;
   position: relative;
-  height: 100vh; // Full height to make input stick at the bottom
+  height: 100vh;
 `;
 
 const Header = styled.div`
@@ -35,7 +35,7 @@ const HeaderDescription = styled.p`
 `;
 
 const MessagesContainer = styled.div`
-  flex-grow: 1; // Take up remaining space
+  flex-grow: 1;
   overflow-y: auto;
   margin-bottom: 20px;
   padding: 10px;
@@ -48,18 +48,18 @@ const MessagesContainer = styled.div`
 const Message = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')}; // Align based on user
+  align-items: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')};
   padding: 10px;
   margin-bottom: 10px;
 `;
 
 const MessageBubble = styled.div`
   padding: 10px;
-  background-color: ${(props) => (props.isCurrentUser ? '#d1ffd1' : '#f1f1f1')}; // Different color for current user
+  background-color: ${(props) => (props.isCurrentUser ? '#d1ffd1' : '#f1f1f1')};
   border-radius: 8px;
   max-width: 60%;
   word-wrap: break-word;
-  align-self: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')}; // Align bubble
+  align-self: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')};
 `;
 
 const MessageText = styled.p`
@@ -70,14 +70,14 @@ const MessageSender = styled.strong`
   color: #555;
   font-size: 0.85em;
   margin-bottom: 5px;
-  display: ${(props) => (props.isCurrentUser ? 'none' : 'block')}; // Hide sender name for current user
+  display: ${(props) => (props.isCurrentUser ? 'none' : 'block')};
 `;
 
 const MessageTimestamp = styled.span`
   font-size: 0.75em;
   color: #999;
   margin-top: 5px;
-  align-self: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')}; // Align based on user
+  align-self: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')};
 `;
 
 const InputContainer = styled.div`
@@ -127,10 +127,10 @@ const BackButton = styled.button`
 
 const ChatRoom = () => {
   const { id } = useParams();
-  const navigate = useNavigate(); // Hook to navigate between routes
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [roomInfo, setRoomInfo] = useState({ name: '', description: '' }); // State for room info
+  const [roomInfo, setRoomInfo] = useState({ name: '', description: '' });
 
   useEffect(() => {
     // Fetch room info
@@ -158,7 +158,7 @@ const ChatRoom = () => {
       setMessages(fetchedMessages);
     });
 
-    return () => unsubscribe(); // Clean up on unmount
+    return () => unsubscribe();
   }, [id]);
 
   const handleSendMessage = async () => {
@@ -166,15 +166,22 @@ const ChatRoom = () => {
 
     try {
       const user = auth.currentUser;
+
+      // Check if the user is logged in
+      if (!user) {
+        alert('You must be logged in to send messages.');
+        return;
+      }
+
       const messageData = {
         text: newMessage,
         userId: user.uid,
         userName: user.displayName,
-        createdAt: new Date(), // Add timestamp
+        createdAt: new Date(),
       };
 
       await addDoc(collection(db, 'chatrooms', id, 'messages'), messageData);
-      setNewMessage(''); // Clear input field after sending the message
+      setNewMessage('');
     } catch (error) {
       console.error('Error sending message: ', error.message);
     }
@@ -188,23 +195,24 @@ const ChatRoom = () => {
         <HeaderDescription>{roomInfo.description}</HeaderDescription>
       </Header>
       <MessagesContainer>
-        {messages.map((message) => (
-          <Message
-            key={message.id}
-            isCurrentUser={message.userId === auth.currentUser.uid}
-          >
-            <MessageBubble isCurrentUser={message.userId === auth.currentUser.uid}>
-              <MessageSender isCurrentUser={message.userId === auth.currentUser.uid}>
-                {message.userName}
-              </MessageSender>
-              <MessageText>{message.text}</MessageText>
-              {/* Display formatted date and time */}
-              <MessageTimestamp>
-                {format(new Date(message.createdAt.seconds * 1000), 'dd/MM/yyyy, HH:mm')}
-              </MessageTimestamp>
-            </MessageBubble>
-          </Message>
-        ))}
+        {messages.map((message) => {
+          // Check for existence of createdAt and handle formatting
+          const timestamp = message.createdAt?.seconds
+            ? format(new Date(message.createdAt.seconds * 1000), 'dd/MM/yyyy, HH:mm')
+            : 'Unknown time';
+
+          return (
+            <Message key={message.id} isCurrentUser={message.userId === auth.currentUser?.uid}>
+              <MessageBubble isCurrentUser={message.userId === auth.currentUser?.uid}>
+                <MessageSender isCurrentUser={message.userId === auth.currentUser?.uid}>
+                  {message.userName}
+                </MessageSender>
+                <MessageText>{message.text}</MessageText>
+                <MessageTimestamp>{timestamp}</MessageTimestamp>
+              </MessageBubble>
+            </Message>
+          );
+        })}
       </MessagesContainer>
       <InputContainer>
         <InputField
