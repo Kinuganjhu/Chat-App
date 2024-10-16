@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebas
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-
+import logo from '../logo.svg'
 // Styled components
 const Container = styled.div`
   display: flex;
@@ -68,7 +68,8 @@ const SignUp = () => {
 
   return (
     <Container>
-      <Title>NinjaChat - A Personal Chatroom for Developers</Title>
+      <Title>91Ninja- A Personal Chatroom for Developers</Title>
+      <img src={logo} alt="91Ninja Logo"height='100px' />
       <Button onClick={handleAuth}>Continue With Google</Button>
     </Container>
   );

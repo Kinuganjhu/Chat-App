@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from './api/firebase';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
 // Styled components
@@ -52,6 +52,7 @@ const ChatRoomLink = styled(Link)`
 `;
 
 const Home = () => {
+  const navigate = useNavigate();
   const [text, setText] = useState({
     name: '',
     description: '',
@@ -99,6 +100,7 @@ const Home = () => {
 
   return (
     <Container>
+      <button onClick={() => navigate('/Profile')}>Profile</button>
       <Title>Create a Chat Room</Title>
 
       <label>Enter chat-room name</label>
