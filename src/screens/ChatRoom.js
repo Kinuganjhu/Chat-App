@@ -1,9 +1,108 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db, auth } from './api/firebase'; // Ensure correct import path
+import { db, auth } from './api/firebase'; 
 import { doc, collection, addDoc, query, orderBy, onSnapshot, getDoc } from 'firebase/firestore';
 import styled from 'styled-components';
-import { format } from 'date-fns'; // Use date-fns for formatting the date and time
+import { format } from 'date-fns'; 
+
+const ChatRoom = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [roomInfo, setRoomInfo] = useState({ name: '', description: '' });
+
+  useEffect(() => {
+    const fetchRoomInfo = async () => {
+      const roomRef = doc(db, 'chatrooms', id);
+      const roomDoc = await getDoc(roomRef);
+      if (roomDoc.exists()) {
+        setRoomInfo(roomDoc.data());
+      } else {
+        console.log('No such document!');
+      }
+    };
+
+    fetchRoomInfo();
+
+    const messagesRef = collection(db, 'chatrooms', id, 'messages');
+    const q = query(messagesRef, orderBy('createdAt', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedMessages = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setMessages(fetchedMessages);
+    });
+
+    return () => unsubscribe();
+  }, [id]);
+
+  const handleSendMessage = async () => {
+    if (newMessage.trim() === '') return;
+
+    try {
+      const user = auth.currentUser;
+
+      if (!user) {
+        alert('You must be logged in to send messages.');
+        return;
+      }
+
+      const messageData = {
+        text: newMessage,
+        userId: user.uid,
+        userName: user.displayName,
+        createdAt: new Date(),
+      };
+
+      await addDoc(collection(db, 'chatrooms', id, 'messages'), messageData);
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message: ', error.message);
+    }
+  };
+
+  return (
+    <Container>
+      <BackButton onClick={() => navigate(-1)}>&larr; Back</BackButton>
+      <Header>
+        <HeaderTitle>{roomInfo.name}</HeaderTitle>
+        <HeaderDescription>{roomInfo.description}</HeaderDescription>
+      </Header>
+      <MessagesContainer>
+        {messages.map((message) => {
+          const timestamp = message.createdAt?.seconds
+            ? format(new Date(message.createdAt.seconds * 1000), 'dd/MM/yyyy, HH:mm')
+            : 'Unknown time';
+
+          return (
+            <Message key={message.id} isCurrentUser={message.userId === auth.currentUser?.uid}>
+              <MessageBubble isCurrentUser={message.userId === auth.currentUser?.uid}>
+                <MessageSender isCurrentUser={message.userId === auth.currentUser?.uid}>
+                  {message.userName}
+                </MessageSender>
+                <MessageText>{message.text}</MessageText>
+                <MessageTimestamp>{timestamp}</MessageTimestamp>
+              </MessageBubble>
+            </Message>
+          );
+        })}
+      </MessagesContainer>
+      <InputContainer>
+        <InputField
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder="Type your message here..."
+        />
+        <SendButton onClick={handleSendMessage}>Send</SendButton>
+      </InputContainer>
+    </Container>
+  );
+};
+export default ChatRoom;
 
 // Styled components
 const Container = styled.div`
@@ -125,106 +224,4 @@ const BackButton = styled.button`
   }
 `;
 
-const ChatRoom = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [roomInfo, setRoomInfo] = useState({ name: '', description: '' });
 
-  useEffect(() => {
-    // Fetch room info
-    const fetchRoomInfo = async () => {
-      const roomRef = doc(db, 'chatrooms', id);
-      const roomDoc = await getDoc(roomRef);
-      if (roomDoc.exists()) {
-        setRoomInfo(roomDoc.data());
-      } else {
-        console.log('No such document!');
-      }
-    };
-
-    fetchRoomInfo();
-
-    // Fetch messages in real-time
-    const messagesRef = collection(db, 'chatrooms', id, 'messages');
-    const q = query(messagesRef, orderBy('createdAt', 'asc'));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedMessages = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setMessages(fetchedMessages);
-    });
-
-    return () => unsubscribe();
-  }, [id]);
-
-  const handleSendMessage = async () => {
-    if (newMessage.trim() === '') return;
-
-    try {
-      const user = auth.currentUser;
-
-      // Check if the user is logged in
-      if (!user) {
-        alert('You must be logged in to send messages.');
-        return;
-      }
-
-      const messageData = {
-        text: newMessage,
-        userId: user.uid,
-        userName: user.displayName,
-        createdAt: new Date(),
-      };
-
-      await addDoc(collection(db, 'chatrooms', id, 'messages'), messageData);
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message: ', error.message);
-    }
-  };
-
-  return (
-    <Container>
-      <BackButton onClick={() => navigate(-1)}>&larr; Back</BackButton>
-      <Header>
-        <HeaderTitle>{roomInfo.name}</HeaderTitle>
-        <HeaderDescription>{roomInfo.description}</HeaderDescription>
-      </Header>
-      <MessagesContainer>
-        {messages.map((message) => {
-          // Check for existence of createdAt and handle formatting
-          const timestamp = message.createdAt?.seconds
-            ? format(new Date(message.createdAt.seconds * 1000), 'dd/MM/yyyy, HH:mm')
-            : 'Unknown time';
-
-          return (
-            <Message key={message.id} isCurrentUser={message.userId === auth.currentUser?.uid}>
-              <MessageBubble isCurrentUser={message.userId === auth.currentUser?.uid}>
-                <MessageSender isCurrentUser={message.userId === auth.currentUser?.uid}>
-                  {message.userName}
-                </MessageSender>
-                <MessageText>{message.text}</MessageText>
-                <MessageTimestamp>{timestamp}</MessageTimestamp>
-              </MessageBubble>
-            </Message>
-          );
-        })}
-      </MessagesContainer>
-      <InputContainer>
-        <InputField
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type your message here..."
-        />
-        <SendButton onClick={handleSendMessage}>Send</SendButton>
-      </InputContainer>
-    </Container>
-  );
-};
-
-export default ChatRoom;

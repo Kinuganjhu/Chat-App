@@ -3,7 +3,46 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebas
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import logo from '../logo.svg'
+import logo from '../logo.svg';
+
+const SignUp = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        navigate('/Home');
+      }
+    });
+
+    return () => unsubscribe(); // Clean up subscription on component unmount
+  }, [navigate]);
+
+  const handleAuth = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        navigate('/Home');
+        alert('Signed up successfully');
+      } else {
+        alert('Authentication failed. Please refresh the page.');
+      }
+    } catch (error) {
+      alert(error.message); // Catch any errors from the signInWithPopup
+    }
+  };
+
+  return (
+    <Container>
+      <Title>91Ninja - A Personal Chatroom for Developers</Title>
+      <img src={logo} alt="91Ninja Logo" height='100px' />
+      <Button onClick={handleAuth}>Continue With Google</Button>
+    </Container>
+  );
+};
+export default SignUp;
+
 // Styled components
 const Container = styled.div`
   display: flex;
@@ -34,45 +73,4 @@ const Button = styled.button`
   }
 `;
 
-const SignUp = () => {
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      try {
-        if (user) {
-          navigate('/Home');
-        }
-      } catch (error) {
-        alert(error.message);
-      }
-    });
-
-    return () => unsubscribe(); // Clean up subscription on component unmount
-  }, [navigate]);
-
-  const handleAuth = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      if (result.user) {
-        navigate('/Home');
-        alert('Signed up successfully');
-      } else {
-        alert('Authentication failed. Please refresh the page.');
-      }
-    } catch (error) {
-      alert(error.message); // Catch any errors from the signInWithPopup
-    }
-  };
-
-  return (
-    <Container>
-      <Title>91Ninja- A Personal Chatroom for Developers</Title>
-      <img src={logo} alt="91Ninja Logo"height='100px' />
-      <Button onClick={handleAuth}>Continue With Google</Button>
-    </Container>
-  );
-};
-
-export default SignUp;
