@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { signOut, updateProfile } from 'firebase/auth';
 import { auth } from './api/firebase';
 import { useNavigate } from 'react-router-dom';
-import AvatarEditor from 'react-avatar-editor';
 import styled from 'styled-components';
 
 const Profile = () => {
@@ -10,11 +9,9 @@ const Profile = () => {
   const [user, setUser] = useState(null);
   const [newDisplayName, setNewDisplayName] = useState('');
   const [newPhotoURL, setNewPhotoURL] = useState('');
-  const [image, setImage] = useState(null); // Holds the uploaded image
-  const [scale, setScale] = useState(1.2); // Scale for cropping
-  const [editor, setEditor] = useState(null); // Reference to AvatarEditor
 
   useEffect(() => {
+    // Set the current authenticated user
     const currentUser = auth.currentUser;
     if (currentUser) {
       setUser(currentUser);
@@ -27,7 +24,7 @@ const Profile = () => {
     signOut(auth)
       .then(() => {
         alert('Logged out successfully');
-        navigate('/');
+        navigate('/'); // Redirect to the home page after logout
       })
       .catch((error) => {
         console.error('Error signing out:', error);
@@ -36,17 +33,17 @@ const Profile = () => {
   };
 
   const handleUpdateProfile = () => {
-    if (editor) {
-      const canvas = editor.getImage().toDataURL(); // Get cropped image as base64
+    if (auth.currentUser) {
       updateProfile(auth.currentUser, {
         displayName: newDisplayName,
-        photoURL: canvas,
+        photoURL: newPhotoURL,
       })
         .then(() => {
+          // Update the user state after successful profile update
           setUser({
             ...auth.currentUser,
             displayName: newDisplayName,
-            photoURL: canvas,
+            photoURL: newPhotoURL,
           });
           alert('Profile updated successfully!');
         })
@@ -57,33 +54,14 @@ const Profile = () => {
     }
   };
 
-  const handleImageChange = (e) => {
-    setImage(e.target.files[0]); // Store uploaded file
-  };
-
   return (
     <ProfileContainer>
       {user ? (
         <>
-          {image ? (
-            <AvatarEditor
-              ref={setEditor}
-              image={image} // The image file to be edited
-              width={250}
-              height={250}
-              border={50}
-              borderRadius={125} // Circular profile pic
-              color={[255, 255, 255, 0.6]} // White background
-              scale={scale}
-              rotate={0}
-            />
-          ) : (
-            <ProfileImage
-              src={user.photoURL || 'https://via.placeholder.com/150'}
-              alt="Profile"
-            />
-          )}
-
+          <ProfileImage
+            src={user.photoURL || 'https://via.placeholder.com/150'}
+            alt="Profile"
+          />
           <h1>{user.displayName}</h1>
           <Email>{user.email}</Email>
 
@@ -97,23 +75,13 @@ const Profile = () => {
           </InputContainer>
 
           <InputContainer>
-            <label>Upload Profile Picture:</label>
-            <ProfileInput type="file" onChange={handleImageChange} />
+            <label>Change Profile Picture URL:</label>
+            <ProfileInput
+              type="text"
+              value={newPhotoURL}
+              onChange={(e) => setNewPhotoURL(e.target.value)}
+            />
           </InputContainer>
-
-          {image && (
-            <div>
-              <label>Scale:</label>
-              <input
-                type="range"
-                min="1"
-                max="2"
-                step="0.01"
-                value={scale}
-                onChange={(e) => setScale(parseFloat(e.target.value))}
-              />
-            </div>
-          )}
 
           <UpdateButton onClick={handleUpdateProfile}>
             Update Profile
