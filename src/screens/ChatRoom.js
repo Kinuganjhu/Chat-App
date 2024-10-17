@@ -136,7 +136,7 @@ const HeaderDescription = styled.p`
 const MessagesContainer = styled.div`
   flex-grow: 1;
   overflow-y: auto;
-  margin-bottom: 20px;
+  margin-bottom: 60px; /* To account for the fixed position of the input */
   padding: 10px;
   background-color: white;
   border-radius: 8px;
@@ -180,10 +180,16 @@ const MessageTimestamp = styled.span`
 `;
 
 const InputContainer = styled.div`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   padding: 10px;
   background-color: #fff;
-  border-radius: 8px;
+  border-top: 1px solid #ddd;
+  z-index: 1000;
+  box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
 `;
 
 const InputField = styled.input`
@@ -223,5 +229,3 @@ const BackButton = styled.button`
     color: #000;
   }
 `;
-
-
