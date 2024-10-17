@@ -28,7 +28,8 @@ const Profile = () => {
       } else {
         setProfileData(null);
         setUser(null);
-        navigate('/'); // Redirect to login if no user is signed in
+        navigate('/');
+        alert('Log Out successfully');
       }
     });
 
