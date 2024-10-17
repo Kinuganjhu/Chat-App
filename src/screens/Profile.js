@@ -28,7 +28,7 @@ const Profile = () => {
       } else {
         setProfileData(null);
         setUser(null);
-        navigate('/login'); // Redirect to login if no user is signed in
+        navigate('/'); // Redirect to login if no user is signed in
       }
     });
 
@@ -39,7 +39,7 @@ const Profile = () => {
     signOut(auth)
       .then(() => {
         setUser(null); // Clear user context on logout
-        navigate('/login'); // Redirect to login after logout
+        navigate('/'); // Redirect to login after logout
       })
       .catch((error) => {
         console.error('Error signing out: ', error);
