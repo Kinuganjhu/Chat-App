@@ -1,11 +1,11 @@
-import { auth } from './api/firebase';
+import { auth, storage } from './api/firebase'; // Ensure storage is imported
 import { signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { useEffect, useContext, useState} from 'react';
+import {ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // Import necessary functions
+import { useEffect, useContext, useState } from 'react';
 import ProfileContext from '../context/ProfileContext';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import AvatarEditor from 'react-avatar-editor';
-
 
 const Profile = () => {
   const { setUser } = useContext(ProfileContext);
@@ -14,7 +14,7 @@ const Profile = () => {
   const [file, setFile] = useState(null);
   const [editor, setEditor] = useState(null);
   const navigate = useNavigate();
-
+  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -23,7 +23,7 @@ const Profile = () => {
           email: currentUser.email,
           photoURL: currentUser.photoURL,
         });
-        setName(currentUser.displayName); // Initialize name state
+        setName(currentUser.displayName);
         setUser(currentUser);
       } else {
         setProfileData(null);
@@ -53,35 +53,35 @@ const Profile = () => {
     }
   };
 
-  const handleSaveImage = () => {
+  const handleSaveImage = async () => {
     if (editor) {
-      // Get the cropped image from the editor
       const canvas = editor.getImage();
       canvas.toBlob(async (blob) => {
-        const url = URL.createObjectURL(blob);
-        // Here you would upload the blob to your storage (e.g., Firebase Storage)
-
-        // Update user profile with the new photo URL
-        await updateProfile(auth.currentUser, {
-          photoURL: url, // This should be the URL after uploading to storage
-        });
-        setProfileData((prevData) => ({
-          ...prevData,
-          photoURL: url,
-        }));
+        if (blob) {
+          const storageRef = ref(storage, `profile_images/${auth.currentUser.uid}.png`);
+          try {
+            await uploadBytes(storageRef, blob);
+            const url = await getDownloadURL(storageRef);
+            await updateProfile(auth.currentUser, { photoURL: url });
+            setProfileData((prevData) => ({
+              ...prevData,
+              photoURL: url,
+            }));
+          } catch (error) {
+            console.error('Error uploading image: ', error);
+          }
+        }
       });
     }
   };
 
   const handleSaveName = async () => {
-    await updateProfile(auth.currentUser, {
-      displayName: name,
-    });
+    await updateProfile(auth.currentUser, { displayName: name });
     setProfileData((prevData) => ({
       ...prevData,
       name,
     }));
-    alert('name changed successfully')
+    alert('Name changed successfully');
   };
 
   return (
@@ -146,7 +146,7 @@ const ProfileImage = styled.img`
   margin-bottom: 10px;
 `;
 
-const ProfileName = styled.h2`
+const ProfileName = styled.h1`
   font-size: 1.5rem;
   margin: 0;
   color: #333;
@@ -171,6 +171,7 @@ const LogoutButton = styled.button`
     background-color: #0056b3;
   }
 `;
+
 const Input = styled.input`
   margin-bottom: 10px;
   padding: 10px;
@@ -190,6 +191,7 @@ const SaveButton = styled.button`
     background-color: #218838;
   }
 `;
+
 const AvatarSection = styled.div`
   margin-top: 20px;
 `;
