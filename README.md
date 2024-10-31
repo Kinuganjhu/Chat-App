@@ -1,7 +1,7 @@
 
-# 91Ninja - Real-Time Developer Chatroom
+# Chatophy - Real-Time Developer Chatroom
 
-91Ninja is a real-time chat application built using React and Firebase (Firestore and Authentication). Users can create and join chat rooms instantly, enabling seamless communication among developers and other users.
+Chatophy is a real-time chat application built using React and Firebase (Firestore and Authentication). Users can create and join chat rooms instantly, enabling seamless communication among developers and other users.
 
 ## Features
 
@@ -24,13 +24,13 @@ To run this project locally:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-repo/91Ninja.git
+   git clone https://github.com/your-repo/Chatophy.git
    ```
 
 2. Navigate to the project directory:
 
    ```bash
-   cd 91Ninja
+   cd Chatophy
    ```
 
 3. Install dependencies:
@@ -60,7 +60,7 @@ The app will be available at `http://localhost:3000`.
 
 ## Live Demo
 
-Check out the live demo: [91Ninja](https://91ninja.netlify.app/)
+Check out the live demo: [Chatophy](https://Chatophy.netlify.app/)
 
 ## Contributing
 
