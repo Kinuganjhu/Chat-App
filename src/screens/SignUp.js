@@ -35,7 +35,7 @@ const SignUp = () => {
 
   return (
     <Container>
-      <Title>91Ninja - A Personal Chatroom for Developers</Title>
+      <Title>Chatophy - A Personal Chatroom for Developers</Title>
       <img src={logo} alt="91Ninja Logo" height='100px' />
       <Button onClick={handleAuth}>Continue With Google</Button>
     </Container>
