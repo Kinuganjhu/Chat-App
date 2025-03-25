@@ -1,247 +1,131 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { db, auth, storage } from './api/firebase';
-import { doc, collection, addDoc, query, orderBy, onSnapshot, getDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import styled from 'styled-components';
-import { format } from 'date-fns';
-import { ProgressBar, Alert } from 'react-bootstrap';
+import React, { useState, useEffect, useRef } from "react";
+import styled from "styled-components";
+import { collection, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
+import { db, storage } from "./api/firebase.js";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { v4 as uuidv4 } from "uuid";
 
 const ChatRoom = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [roomInfo, setRoomInfo] = useState({ name: '', description: '' });
-  const [file, setFile] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [alertMessage, setAlertMessage] = useState(null);
-  const [alertVariant, setAlertVariant] = useState('success');
+  const [text, setText] = useState("");
+  const [image, setImage] = useState(null);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    const fetchRoomInfo = async () => {
-      const roomRef = doc(db, 'chatrooms', id);
-      const roomDoc = await getDoc(roomRef);
-      if (roomDoc.exists()) {
-        setRoomInfo(roomDoc.data());
-      } else {
-        console.log('No such document!');
-      }
-    };
-
-    fetchRoomInfo();
-
-    const messagesRef = collection(db, 'chatrooms', id, 'messages');
-    const q = query(messagesRef, orderBy('createdAt', 'asc'));
-
+    const q = query(collection(db, "messages"), orderBy("timestamp"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedMessages = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setMessages(fetchedMessages);
+      setMessages(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
     return () => unsubscribe();
-  }, [id]);
+  }, []);
 
-  const handleSendMessage = async () => {
-    if (newMessage.trim() === '' && !file) return;
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        setAlertMessage('You must be logged in to send messages.');
-        setAlertVariant('danger');
-        return;
-      }
+  const sendMessage = async () => {
+    if (!text.trim() && !image) return;
 
-      let imageUrl = null;
-
-      if (file) {
-        const storageRef = ref(storage, `chat_images/${id}/${file.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          },
-          (error) => {
-            console.error('Error uploading image:', error);
-            setAlertMessage('Failed to upload image.');
-            setAlertVariant('danger');
-          },
-          async () => {
-            imageUrl = await getDownloadURL(storageRef);
-            await sendMessageToFirestore(user, newMessage, imageUrl);
-            setUploadProgress(0);
-            setFile(null);
-            setAlertMessage('Message sent successfully!');
-            setAlertVariant('success');
-          }
-        );
-      } else {
-        await sendMessageToFirestore(user, newMessage, null);
-        setAlertMessage('Message sent successfully!');
-        setAlertVariant('success');
-      }
-
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message: ', error.message);
-      setAlertMessage('Failed to send message.');
-      setAlertVariant('danger');
+    let imageUrl = null;
+    if (image) {
+      const imageRef = ref(storage, `images/${uuidv4()}`);
+      await uploadBytes(imageRef, image);
+      imageUrl = await getDownloadURL(imageRef);
     }
-  };
 
-  const sendMessageToFirestore = async (user, text, imageUrl) => {
-    const messageData = {
+    await addDoc(collection(db, "messages"), {
       text,
       imageUrl,
-      userId: user.uid,
-      userName: user.displayName,
-      createdAt: new Date(),
-    };
-    await addDoc(collection(db, 'chatrooms', id, 'messages'), messageData);
-  };
+      timestamp: new Date(),
+    });
 
-  const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
+    setText("");
+    setImage(null);
   };
 
   return (
-    <Container>
-      {alertMessage && <Alert variant={alertVariant}>{alertMessage}</Alert>}
-
-      <BackButton onClick={() => navigate(-1)}>&larr; Back</BackButton>
-      <Header>
-        <HeaderTitle>{roomInfo.name}</HeaderTitle>
-        <HeaderDescription>{roomInfo.description}</HeaderDescription>
-      </Header>
+    <ChatContainer>
       <MessagesContainer>
-        {messages.map((message) => {
-          const timestamp = message.createdAt?.seconds
-            ? format(new Date(message.createdAt.seconds * 1000), 'dd/MM/yyyy, HH:mm')
-            : 'Unknown time';
-
-          return (
-            <Message key={message.id} isCurrentUser={message.userId === auth.currentUser?.uid}>
-              <MessageBubble isCurrentUser={message.userId === auth.currentUser?.uid}>
-                <MessageSender isCurrentUser={message.userId === auth.currentUser?.uid}>
-                  {message.userName}
-                </MessageSender>
-                {message.imageUrl && <MessageImage src={message.imageUrl} alt="Uploaded" />}
-                {message.text && <MessageText>{message.text}</MessageText>}
-                <MessageTimestamp>{timestamp}</MessageTimestamp>
-              </MessageBubble>
-            </Message>
-          );
-        })}
+        {messages.map((msg) => (
+          <Message key={msg.id} isUser={msg.text === text}>
+            {msg.text && <Text>{msg.text}</Text>}
+            {msg.imageUrl && <Image src={msg.imageUrl} alt="Sent Image" />}
+          </Message>
+        ))}
+        <div ref={messagesEndRef} />
       </MessagesContainer>
       <InputContainer>
-        <InputField
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type your message here..."
+        <Input 
+          type="text" 
+          placeholder="Type your message..." 
+          value={text} 
+          onChange={(e) => setText(e.target.value)} 
         />
-        <FileInput type="file" onChange={handleFileChange} />
-        <SendButton onClick={handleSendMessage}>Send</SendButton>
+        <FileInput 
+          type="file" 
+          accept="image/*" 
+          onChange={(e) => setImage(e.target.files[0])} 
+        />
+        <SendButton onClick={sendMessage}>Send</SendButton>
       </InputContainer>
-      {uploadProgress > 0 && <ProgressBar now={uploadProgress} label={`${Math.round(uploadProgress)}%`} />}
-    </Container>
+    </ChatContainer>
   );
 };
 
 export default ChatRoom;
 
-// Styled Components
-const Container = styled.div`
+const ChatContainer = styled.div`
   display: flex;
   flex-direction: column;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: #f0f0f0;
-  border-radius: 8px;
-  position: relative;
   height: 100vh;
-`;
-
-const Header = styled.div`
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 20px;
-`;
-
-const HeaderTitle = styled.h2`
-  margin: 0;
-`;
-
-const HeaderDescription = styled.p`
-  margin: 0;
-  font-style: italic;
-  color: #555;
+  max-width: 600px;
+  margin: auto;
+  border: 1px solid #ddd;
+  background-color: #f0f0f0;
 `;
 
 const MessagesContainer = styled.div`
-  flex-grow: 1;
+  flex: 1;
   overflow-y: auto;
-  margin-bottom: 60px;
   padding: 10px;
-  background-color: white;
-  border-radius: 8px;
 `;
 
 const Message = styled.div`
+  max-width: 80%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: ${(props) => (props.isUser ? "#dcf8c6" : "#fff")};
+  align-self: ${(props) => (props.isUser ? "flex-end" : "flex-start")};
   display: flex;
   flex-direction: column;
-  align-items: ${(props) => (props.isCurrentUser ? 'flex-end' : 'flex-start')};
-  padding: 10px;
-  margin-bottom: 10px;
 `;
 
-const MessageBubble = styled.div`
-  padding: 10px;
-  background-color: ${(props) => (props.isCurrentUser ? '#d1ffd1' : '#f1f1f1')};
-  border-radius: 8px;
-  max-width: 60%;
+const Text = styled.p`
+  margin: 0;
+  font-size: 14px;
   word-wrap: break-word;
 `;
 
-const MessageImage = styled.img`
+const Image = styled.img`
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: 5px;
   margin-top: 5px;
-`;
-
-const MessageText = styled.p`
-  margin: 0;
-`;
-
-const MessageSender = styled.strong`
-  color: #555;
-  font-size: 0.85em;
-  display: ${(props) => (props.isCurrentUser ? 'none' : 'block')};
-`;
-
-const MessageTimestamp = styled.span`
-  font-size: 0.75em;
-  color: #999;
 `;
 
 const InputContainer = styled.div`
   display: flex;
   padding: 10px;
-  background-color: #fff;
+  background: #fff;
   border-top: 1px solid #ddd;
 `;
 
-const InputField = styled.input`
-  flex-grow: 1;
+const Input = styled.input`
+  flex: 1;
   padding: 10px;
+  border: none;
+  outline: none;
 `;
 
 const FileInput = styled.input`
@@ -249,11 +133,12 @@ const FileInput = styled.input`
 `;
 
 const SendButton = styled.button`
+  padding: 10px;
+  background-color: #25d366;
+  color: white;
+  border: none;
+  cursor: pointer;
   margin-left: 10px;
+  border-radius: 5px;
 `;
 
-const BackButton = styled.button`
-  position: absolute;
-  top: 10px;
-  left: 10px;
-`;
