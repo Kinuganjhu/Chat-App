@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth, storage } from './api/firebase';
-import { doc, collection, addDoc, query, orderBy, onSnapshot, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, addDoc, query, orderBy, onSnapshot, getDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import styled from 'styled-components';
 import { format } from 'date-fns';
@@ -12,20 +12,34 @@ const ChatRoom = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [roomInfo, setRoomInfo] = useState({ name: '', description: '' });
   const [file, setFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertVariant, setAlertVariant] = useState('success');
+  const [loading, setLoading] = useState(true);
 
+  // Fetch room info
   useEffect(() => {
     const fetchRoomInfo = async () => {
-      const roomRef = doc(db, 'chatrooms', id);
-      const roomDoc = await getDoc(roomRef);
-      if (!roomDoc.exists()) navigate('/'); // Redirect if room doesn't exist
+      setLoading(true);
+      try {
+        const roomRef = doc(db, 'chatrooms', id);
+        const roomDoc = await getDoc(roomRef);
+        if (roomDoc.exists()) {
+          setRoomInfo(roomDoc.data());
+        } else {
+          navigate('/'); // Redirect if the room doesn't exist
+        }
+      } catch (error) {
+        console.error('Error fetching room info:', error);
+      }
+      setLoading(false);
     };
 
     fetchRoomInfo();
 
+    // Listen for messages
     const messagesRef = collection(db, 'chatrooms', id, 'messages');
     const q = query(messagesRef, orderBy('createdAt', 'asc'));
 
@@ -36,6 +50,7 @@ const ChatRoom = () => {
     return () => unsubscribe();
   }, [id, navigate]);
 
+  // Send message
   const handleSendMessage = async () => {
     if (newMessage.trim() === '' && !file) return;
 
@@ -48,7 +63,6 @@ const ChatRoom = () => {
       }
 
       let imageUrl = null;
-
       if (file) {
         const storageRef = ref(storage, `chat_images/${id}/${file.name}`);
         const uploadTask = uploadBytesResumable(storageRef, file);
@@ -64,7 +78,7 @@ const ChatRoom = () => {
             setAlertVariant('danger');
           },
           async () => {
-            imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            imageUrl = await getDownloadURL(storageRef);
             await sendMessageToFirestore(user, newMessage, imageUrl);
             setUploadProgress(0);
             setFile(null);
@@ -76,7 +90,7 @@ const ChatRoom = () => {
 
       setNewMessage('');
     } catch (error) {
-      console.error('Error sending message: ', error.message);
+      console.error('Error sending message:', error.message);
       setAlertMessage('Failed to send message.');
       setAlertVariant('danger');
     }
@@ -88,17 +102,19 @@ const ChatRoom = () => {
       imageUrl,
       userId: user.uid,
       userName: user.displayName,
-      createdAt: serverTimestamp(),
+      createdAt: new Date(),
     });
   };
 
-  return (
+  return loading ? (
+    <LoadingContainer>Loading...</LoadingContainer>
+  ) : (
     <Container>
       {alertMessage && <Alert variant={alertVariant}>{alertMessage}</Alert>}
-
+      
       <Header>
         <BackButton onClick={() => navigate(-1)}>&larr; Back</BackButton>
-        <Title>Chat</Title>
+        <Title>{roomInfo.name}</Title>
       </Header>
 
       <MessagesContainer>
@@ -135,13 +151,12 @@ const ChatRoom = () => {
 
 export default ChatRoom;
 
-/** 🟢 WhatsApp-Like CSS **/
+// Styled Components
 const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100vh;
   background-color: #e5ddd5;
-  position: relative;
 `;
 
 const Header = styled.div`
@@ -152,24 +167,22 @@ const Header = styled.div`
   color: white;
 `;
 
+const Title = styled.h2`
+  margin: 0 auto;
+`;
+
 const BackButton = styled.button`
   background: none;
   border: none;
   color: white;
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
 `;
 
-const Title = styled.h2`
-  margin-left: 10px;
-`;
-
 const MessagesContainer = styled.div`
-  flex: 1;
+  flex-grow: 1;
   overflow-y: auto;
   padding: 10px;
-  display: flex;
-  flex-direction: column;
 `;
 
 const Message = styled.div`
@@ -181,19 +194,14 @@ const Message = styled.div`
 const Bubble = styled.div`
   max-width: 60%;
   padding: 10px;
-  border-radius: 8px;
   background-color: ${(props) => (props.isCurrentUser ? '#dcf8c6' : '#fff')};
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  word-wrap: break-word;
 `;
 
-const Sender = styled.span`
+const Sender = styled.strong`
   font-size: 12px;
-  font-weight: bold;
   color: #555;
-`;
-
-const Text = styled.p`
-  margin: 0;
 `;
 
 const Image = styled.img`
@@ -202,28 +210,25 @@ const Image = styled.img`
   margin-top: 5px;
 `;
 
+const Text = styled.p`
+  margin: 0;
+`;
+
 const Timestamp = styled.span`
-  font-size: 12px;
+  font-size: 10px;
   color: gray;
-  display: block;
-  text-align: right;
 `;
 
 const InputContainer = styled.div`
-  position: fixed;
-  bottom: 0;
-  width: 100%;
   display: flex;
   padding: 10px;
-  background-color: white;
+  background-color: #fff;
   border-top: 1px solid #ddd;
 `;
 
 const Input = styled.input`
-  flex: 1;
+  flex-grow: 1;
   padding: 10px;
-  border: none;
-  outline: none;
 `;
 
 const FileInput = styled.input`
@@ -231,11 +236,15 @@ const FileInput = styled.input`
 `;
 
 const SendButton = styled.button`
-  padding: 10px;
-  background-color: #25d366;
-  color: white;
-  border: none;
-  cursor: pointer;
   margin-left: 10px;
-  border-radius: 5px;
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 20px;
+  font-weight: bold;
+  color: #075e54;
 `;
