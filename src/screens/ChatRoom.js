@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
-import { collection, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db, storage } from "./api/firebase.js";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
@@ -12,7 +12,7 @@ const ChatRoom = () => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    const q = query(collection(db, "messages"), orderBy("timestamp"));
+    const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setMessages(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
@@ -35,9 +35,9 @@ const ChatRoom = () => {
     }
 
     await addDoc(collection(db, "messages"), {
-      text,
+      text: text.trim() || null,
       imageUrl,
-      timestamp: new Date(),
+      timestamp: serverTimestamp(), // Corrected timestamp
     });
 
     setText("");
@@ -48,7 +48,7 @@ const ChatRoom = () => {
     <ChatContainer>
       <MessagesContainer>
         {messages.map((msg) => (
-          <Message key={msg.id} isUser={msg.text === text}>
+          <Message key={msg.id} isUser={false /* Replace with actual user logic */}>
             {msg.text && <Text>{msg.text}</Text>}
             {msg.imageUrl && <Image src={msg.imageUrl} alt="Sent Image" />}
           </Message>
@@ -65,7 +65,7 @@ const ChatRoom = () => {
         <FileInput 
           type="file" 
           accept="image/*" 
-          onChange={(e) => setImage(e.target.files[0])} 
+          onChange={(e) => setImage(e.target.files[0] || null)} 
         />
         <SendButton onClick={sendMessage}>Send</SendButton>
       </InputContainer>
@@ -141,4 +141,3 @@ const SendButton = styled.button`
   margin-left: 10px;
   border-radius: 5px;
 `;
-
