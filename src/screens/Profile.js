@@ -1,12 +1,11 @@
-import { auth, storage } from './api/firebase';
+import { auth, storage } from './api/firebase'; // Ensure storage is imported
 import { signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'; // Use uploadBytesResumable
+import {ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // Import necessary functions
 import { useEffect, useContext, useState } from 'react';
 import ProfileContext from '../context/ProfileContext';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import AvatarEditor from 'react-avatar-editor';
-import { ProgressBar, Alert } from 'react-bootstrap'; // Import Bootstrap components
 
 const Profile = () => {
   const { setUser } = useContext(ProfileContext);
@@ -14,11 +13,8 @@ const Profile = () => {
   const [name, setName] = useState('');
   const [file, setFile] = useState(null);
   const [editor, setEditor] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [alertMessage, setAlertMessage] = useState(null);
-  const [alertVariant, setAlertVariant] = useState('success');
   const navigate = useNavigate();
-
+  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -37,14 +33,14 @@ const Profile = () => {
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribe(); // Clean up subscription on unmount
   }, [navigate, setUser]);
 
   const handleLogout = () => {
     signOut(auth)
       .then(() => {
-        setUser(null);
-        navigate('/');
+        setUser(null); // Clear user context on logout
+        navigate('/'); // Redirect to login after logout
       })
       .catch((error) => {
         console.error('Error signing out: ', error);
@@ -64,55 +60,33 @@ const Profile = () => {
       canvas.toBlob(async (blob) => {
         if (blob) {
           const storageRef = ref(storage, `profile_images/${auth.currentUser.uid}.png`);
-          const uploadTask = uploadBytesResumable(storageRef, blob);
-
-          uploadTask.on(
-            'state_changed',
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setUploadProgress(progress); // Update progress bar
-            },
-            (error) => {
-              console.error('Error uploading image:', error);
-              setAlertMessage('Failed to upload image.');
-              setAlertVariant('danger');
-            },
-            async () => {
-              const url = await getDownloadURL(storageRef);
-              await updateProfile(auth.currentUser, { photoURL: url });
-              setProfileData((prevData) => ({
-                ...prevData,
-                photoURL: url,
-              }));
-              setUploadProgress(0);
-              setAlertMessage('Profile image updated successfully!');
-              setAlertVariant('success');
-            }
-          );
+          try {
+            await uploadBytes(storageRef, blob);
+            const url = await getDownloadURL(storageRef);
+            await updateProfile(auth.currentUser, { photoURL: url });
+            setProfileData((prevData) => ({
+              ...prevData,
+              photoURL: url,
+            }));
+          } catch (error) {
+            console.error('Error uploading image: ', error);
+          }
         }
       });
     }
   };
 
   const handleSaveName = async () => {
-    try {
-      await updateProfile(auth.currentUser, { displayName: name });
-      setProfileData((prevData) => ({
-        ...prevData,
-        name,
-      }));
-      setAlertMessage('Name updated successfully!');
-      setAlertVariant('success');
-    } catch (error) {
-      setAlertMessage('Failed to update name.');
-      setAlertVariant('danger');
-    }
+    await updateProfile(auth.currentUser, { displayName: name });
+    setProfileData((prevData) => ({
+      ...prevData,
+      name,
+    }));
+    alert('Name changed successfully');
   };
 
   return (
     <ProfileContainer>
-      {alertMessage && <Alert variant={alertVariant}>{alertMessage}</Alert>}
-
       {profileData ? (
         <>
           <ProfileImage src={profileData.photoURL} alt="Profile" />
@@ -124,20 +98,17 @@ const Profile = () => {
             <h3>Change Profile Picture</h3>
             <Input type="file" onChange={handleChangeFile} />
             {file && (
-              <>
-                <AvatarEditor
-                  ref={(ref) => setEditor(ref)}
-                  image={file}
-                  width={200}
-                  height={200}
-                  border={50}
-                  borderRadius={100}
-                  scale={1.2}
-                />
-                <SaveButton onClick={handleSaveImage}>Save Image</SaveButton>
-                {uploadProgress > 0 && <ProgressBar now={uploadProgress} label={`${Math.round(uploadProgress)}%`} />}
-              </>
+              <AvatarEditor
+                ref={(ref) => setEditor(ref)}
+                image={file}
+                width={200}
+                height={200}
+                border={50}
+                borderRadius={100}
+                scale={1.2}
+              />
             )}
+            <SaveButton onClick={handleSaveImage}>Save Image</SaveButton>
           </AvatarSection>
 
           <NameSection>
@@ -160,7 +131,6 @@ const Profile = () => {
 
 export default Profile;
 
-// Styled Components
 const ProfileContainer = styled.div`
   display: flex;
   flex-direction: column;
